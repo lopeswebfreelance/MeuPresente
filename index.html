@@ -130,10 +130,17 @@
         }
 
         .product-price {
+            font-size: 1.05rem;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+        }
+
+        .product-price span {
             font-size: 1.2rem;
             font-weight: bold;
             color: var(--accent-color);
-            margin-bottom: 15px;
+            display: inline-block;
+            margin-left: 4px;
         }
 
         .actions-btn {
@@ -288,17 +295,17 @@
 
     <header>
         <div style="display: flex; justify-content: center;">
-			<div class="profile-img" style="background-image: url('imagens/perfil.jpeg'); background-size: cover;"></div>
-	   </div>
+            <div class="profile-img" style="background-image: url('imagens/perfil.jpeg'); background-size: cover;"></div>
+        </div>
         <h1>Meu Aniversário está chegando! 🎉</h1>
         <p class="gratitude-text">
-            "A generosidade é o único investmento que nunca falha. Estar cercado de quem amo já é o meu maior presente, mas se você deseja marcar essa data com um mimo, escolhi cada item abaixo com muito carinho. Desde já, minha eterna gratidão pelo seu gesto!"
+            "A generosidade é o único investimento que nunca falha. Estar cercado de quem amo já é o meu maior presente, mas se você deseja marcar essa data com um mimo, escolhi cada item abaixo com muito carinho. Desde já, minha eterna gratidão pelo seu gesto!"
         </p>
     </header>
 
     <div class="container">
         <main class="products-grid" id="grid-produtos">
-        </main>
+            </main>
     </div>
 
     <footer>
@@ -308,7 +315,7 @@
     <div class="modal" id="modal-confirmacao-loja">
         <div class="modal-content">
             <h2>Você concluiu a compra? 🛒</h2>
-            <p>A página do livro foi aberta para você. Caso tenha finalizado a compra no site, clique no botão abaixo para reservá-lo definitivamente na lista.</p>
+            <p>A página do livro foi aberta para você em uma nova aba. Caso tenha finalizado a compra com sucesso no site da loja, confirme abaixo para reservá-lo definitivamente na lista.</p>
             <div class="modal-buttons-row">
                 <button class="btn btn-buy" id="btn-sim-comprei">Sim, já comprei!</button>
                 <button class="btn btn-cash" onclick="fecharModais()">Ainda não / Desisti</button>
@@ -327,10 +334,10 @@
     <div class="modal" id="modal-qrcode">
         <div class="modal-content">
             <h2>Contribuição em Dinheiro 🎁</h2>
-            <p>Se preferir contribuir com o valor para que eu mesmo adquira o item, consulte o preço atualizado no link de compra e escaneie o QR Code abaixo para transferir:</p>
+            <p>Se preferir contribuir com o valor para que eu mesmo adquira o item, você pode realizar a transferência escaneando o QR Code abaixo:</p>
             
             <div class="qrcode-placeholder" id="qrcode-container">
-            </div>
+                </div>
             
             <p style="font-weight: bold; color: var(--accent-color);" id="modal-valor-exibido"></p>
             <p style="font-size: 0.85rem; font-style: italic;">"Sua generosidade transforma intenções em momentos inesquecíveis. Obrigado!"</p>
@@ -340,8 +347,8 @@
     </div>
 
     <script>
-        // Mapeamento direcionado para os arquivos salvos na sua pasta local 'imagens/'
-          const produtos = [
+        // Array com links originais, imagens locais e os preços reais extraídos de cada site mapeado
+        const produtos = [
             { id: 1, nome: "Construindo Aplicações com Agentes IA", preco: "R$ 118,84", imagem: "imagens/agentes-ia.jpg", linkCompra: "https://www.amazon.com.br/Construindo-Aplica%C3%A7%C3%B5es-com-Agentes-Implementa%C3%A7%C3%A3o/dp/8575229907/", comprado: false },
             { id: 2, nome: "Projetando Sistemas de Machine Learning", preco: "R$ 63,00", imagem: "imagens/machine-learning.jpg", linkCompra: "https://www.amazon.com.br/Projetando-Sistemas-Machine-Learning-Interativo/dp/8550819670/", comprado: false },
             { id: 3, nome: "Bíblia da Automação com N8N", preco: "R$ 199,00", imagem: "imagens/biblia-n8n.jpg", linkCompra: "https://www.amazon.com.br/B%C3%ADblia-Automa%C3%A7%C3%A3o-com-N8N-Inteligentes/dp/B0FQPMXFT6/", comprado: false },
@@ -358,7 +365,52 @@
             { id: 14, nome: "Shell Script Profissional", preco: "R$ 97,13", imagem: "imagens/shell-script.jpg", linkCompra: "https://www.amazon.com.br/Script-Profissional-Aurelio-Marinho-Jargas/dp/8575221523/", comprado: false }
         ];
 
-       let itemAtualId = null;
+        let itemAtualId = null;
+
+        // --- ENDPOINT DA API DE PERSISTÊNCIA GLOBAL MULTI-DISPOSITIVOS ---
+        const API_URL = "https://kvbin.org/v1/lista-aniversario-israel-lopes";
+
+        // Busca na nuvem quais itens já foram comprados
+        async function buscarEstadoGlobal() {
+            try {
+                const response = await fetch(API_URL);
+                if (response.ok) {
+                    const idsReservados = await response.json();
+                    if (Array.isArray(idsReservados)) {
+                        produtos.forEach(prod => {
+                            prod.comprado = idsReservados.includes(prod.id);
+                        });
+                        renderizarProdutos();
+                    }
+                }
+            } catch (error) {
+                console.warn("Conexão com o servidor indisponível. Operando em modo offline temporário.");
+            }
+        }
+
+        // Salva na nuvem o novo item comprado sem sobrescrever os anteriores
+        async function salvarCompraGlobal(id) {
+            try {
+                const response = await fetch(API_URL);
+                let idsReservados = [];
+                if (response.ok) {
+                    idsReservados = await response.json();
+                    if (!Array.isArray(idsReservados)) idsReservados = [];
+                }
+                
+                if (!idsReservados.includes(id)) {
+                    idsReservados.push(id);
+                }
+
+                await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(idsReservados)
+                });
+            } catch (error) {
+                console.error("Falha ao sincronizar a reserva na nuvem:", error);
+            }
+        }
 
         function renderizarProdutos() {
             const grid = document.getElementById('grid-produtos');
@@ -394,13 +446,14 @@
             }, 800); 
         }
 
-        document.getElementById('btn-sim-comprei').addEventListener('click', () => {
+        document.getElementById('btn-sim-comprei').addEventListener('click', async () => {
             if(itemAtualId) {
                 marcarComoComprado(itemAtualId);
                 document.getElementById('modal-confirmacao-loja').style.display = 'none';
                 setTimeout(() => {
                     document.getElementById('modal-agradecimento').style.display = 'flex';
                 }, 300);
+                await salvarCompraGlobal(itemAtualId);
             }
         });
 
@@ -412,19 +465,19 @@
             
             const qrContainer = document.getElementById('qrcode-container');
             const textoDadosPix = `ChavePixFicticia-${produto.nome}-${produto.preco}`;
-            qrContainer.innerHTML = `<img src="imagens/QRCODE.png" QR Code Pix">`;
-			
+            qrContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(textoDadosPix)}" alt="QR Code Pix">`;
 
             document.getElementById('modal-qrcode').style.display = 'flex';
         }
 
-        document.getElementById('btn-confirmar-pix').addEventListener('click', () => {
+        document.getElementById('btn-confirmar-pix').addEventListener('click', async () => {
             if(itemAtualId) {
                 marcarComoComprado(itemAtualId);
                 fecharModais();
                 setTimeout(() => {
                     document.getElementById('modal-agradecimento').style.display = 'flex';
                 }, 300);
+                await salvarCompraGlobal(itemAtualId);
             }
         });
 
@@ -443,7 +496,11 @@
             itemAtualId = null;
         }
 
-        window.onload = renderizarProdutos;
+        // Executa ao abrir a página: Renderiza o esqueleto e busca as compras salvas na nuvem
+        window.onload = async () => {
+            renderizarProdutos();
+            await buscarEstadoGlobal();
+        };
     </script>
 </body>
 </html>
